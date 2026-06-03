@@ -367,19 +367,19 @@ final class StatusItemController {
                 String(format: " (%+.2f%%)", snap.todayPnLPct * 100)
             items.append(.summary(label: L("summary.today", comment: ""), value: value, direction: dir))
         }
-        if prefs.showTotalAssets {
-            items.append(.summary(
-                label: L("summary.totalAssets", comment: ""),
-                value: snap.baseCurrency.format(snap.totalAssets),
-                direction: .neutral
-            ))
-        }
         if prefs.showAllTimePnL {
             let dir: TickerDirection = snap.allTimePnL > 0 ? .up : (snap.allTimePnL < 0 ? .down : .neutral)
             let sign = snap.allTimePnL >= 0 ? "+" : "-"
             let value = sign + snap.baseCurrency.format(snap.allTimePnL.magnitude) +
                 String(format: " (%+.2f%%)", snap.allTimePnLPct * 100)
             items.append(.summary(label: L("summary.allTime", comment: ""), value: value, direction: dir))
+        }
+        if prefs.showTotalAssets {
+            items.append(.summary(
+                label: L("summary.totalAssets", comment: ""),
+                value: snap.baseCurrency.format(snap.totalAssets),
+                direction: .neutral
+            ))
         }
 
         let enabledIDs = prefs.tickerIndexIDs

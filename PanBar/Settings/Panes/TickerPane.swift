@@ -66,8 +66,8 @@ private struct TickerPaneContent: View {
 
             Section(header: Text(L("ticker.summarySection", comment: "")).font(.headline)) {
                 Toggle(L("ticker.showTodayPnL", comment: ""), isOn: $prefs.showTodayPnL)
-                Toggle(L("ticker.showTotalAssets", comment: ""), isOn: $prefs.showTotalAssets)
                 Toggle(L("ticker.showAllTimePnL", comment: ""), isOn: $prefs.showAllTimePnL)
+                Toggle(L("ticker.showTotalAssets", comment: ""), isOn: $prefs.showTotalAssets)
                 Text(L("ticker.summaryHint", comment: ""))
                     .font(.caption)
                     .foregroundColor(.secondary)
