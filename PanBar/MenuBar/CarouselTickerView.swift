@@ -83,6 +83,10 @@ final class CarouselTickerView: NSView {
         displayLink = nil
     }
 
+    func invalidateAnimation() {
+        stopAnimation()
+    }
+
     private func step(now: CFTimeInterval) {
         if items.count <= 1 {
             return

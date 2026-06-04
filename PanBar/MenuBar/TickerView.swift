@@ -107,6 +107,10 @@ final class TickerView: NSView {
         displayLink = nil
     }
 
+    func invalidateAnimation() {
+        stopAnimation()
+    }
+
     private func step(timestamp: CFTimeInterval) {
         defer { lastTimestamp = timestamp }
         if lastTimestamp == 0 { return }

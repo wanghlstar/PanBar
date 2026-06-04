@@ -107,6 +107,7 @@ final class StatusItemController {
     /// 通过 onContentChanged 回调把渲染好的 NSImage 设给 button.image。
     private func swapTickerView(to mode: TickerDisplayMode) {
         tickerView.onContentChanged = nil
+        tickerView.invalidateAnimation()
         tickerView = Self.makeView(for: mode, scheme: prefs.colorScheme)
         wireUpTickerView()
         currentMode = mode

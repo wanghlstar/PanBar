@@ -15,6 +15,8 @@ protocol MenuBarTickerView: NSView {
     var onContentChanged: (() -> Void)? { get set }
     /// 暂停动画(全市场休市 / 用户开关)
     func setPaused(_ paused: Bool)
+    /// view 被替换前停止内部动画源,避免旧 display link 的异步回调撞到新模式。
+    func invalidateAnimation()
     /// 把当前状态画进 NSImage。size 跟 totalWidth × 22 一致。
     func renderImage() -> NSImage
 }
@@ -51,9 +53,11 @@ extension CarouselTickerView: MenuBarTickerView {
 extension CompactTickerView: MenuBarTickerView {
     func renderImage() -> NSImage { defaultRenderImage() }
     func setPaused(_ paused: Bool) {}   // 无动画
+    func invalidateAnimation() {}
 }
 
 extension MinimalTickerView: MenuBarTickerView {
     func renderImage() -> NSImage { defaultRenderImage() }
     func setPaused(_ paused: Bool) {}   // 无动画
+    func invalidateAnimation() {}
 }
