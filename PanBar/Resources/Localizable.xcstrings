@@ -416,6 +416,12 @@
         "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "离线" } }
       }
     },
+    "footer.quoteFailed" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Quote refresh failed" } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "行情刷新失败" } }
+      }
+    },
     "holdings.empty" : {
       "localizations" : {
         "en" : { "stringUnit" : { "state" : "translated", "value" : "No holdings yet." } },
