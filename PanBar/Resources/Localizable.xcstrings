@@ -1472,6 +1472,12 @@
         "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "面板密度" } }
       }
     },
+    "settings.holdingPopoverMetric" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Holdings Row Metric" } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "持仓行指标" } }
+      }
+    },
     "settings.browser" : {
       "localizations" : {
         "en" : { "stringUnit" : { "state" : "translated", "value" : "Open in" } },

@@ -24,6 +24,7 @@ private struct GeneralPaneContent: View {
     @State private var launchAtLogin: Bool = LaunchAtLoginService.isEnabled
     @State private var baseCurrency: Currency = .cny
     @State private var browserTemplate: String = BrowserURLBuilder.Template.xueqiu.rawValue
+    @State private var holdingPopoverMetric: HoldingPopoverMetric = .allTime
     @State private var hideOnScreenShare: Bool = true
     @State private var proxyMode: NetworkConfig.ProxyMode = .system
     @State private var proxyHost: String = ""
@@ -82,6 +83,15 @@ private struct GeneralPaneContent: View {
                     ForEach(PopoverDensity.allCases) { d in
                         Text(d.displayName).tag(d)
                     }
+                }
+
+                Picker(L("settings.holdingPopoverMetric", comment: ""), selection: $holdingPopoverMetric) {
+                    ForEach(HoldingPopoverMetric.allCases) { metric in
+                        Text(metric.displayName).tag(metric)
+                    }
+                }
+                .onChange(of: holdingPopoverMetric) { value in
+                    try? container.settingsRepo.set(SettingsRepository.Keys.holdingPopoverMetric, value.rawValue)
                 }
 
                 Picker(L("settings.colorScheme", comment: ""), selection: $prefs.colorScheme) {
@@ -180,6 +190,9 @@ private struct GeneralPaneContent: View {
         .onAppear {
             baseCurrency = container.settingsRepo.baseCurrency
             browserTemplate = container.settingsRepo.string(BrowserURLBuilder.templateKey) ?? BrowserURLBuilder.Template.xueqiu.rawValue
+            holdingPopoverMetric = HoldingPopoverMetric(
+                rawValue: container.settingsRepo.string(SettingsRepository.Keys.holdingPopoverMetric) ?? ""
+            ) ?? .allTime
             hideOnScreenShare = container.settingsRepo.string(SettingsRepository.Keys.hideOnScreenShare) != "0"
             proxyMode = container.settingsRepo.proxyMode
             proxyHost = container.settingsRepo.proxyHost
