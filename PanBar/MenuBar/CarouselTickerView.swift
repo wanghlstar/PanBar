@@ -21,11 +21,15 @@ final class CarouselTickerView: NSView {
     var onContentChanged: (() -> Void)?
 
     let iconWidth: CGFloat = 18
+    var preferredTotalWidth: CGFloat?
     var visibleTextWidth: CGFloat = 200
     var privacyHidden: Bool = false
 
     var totalWidth: CGFloat {
-        iconWidth + 6 + visibleTextWidth + 4
+        if let preferredTotalWidth {
+            return max(40, preferredTotalWidth)
+        }
+        return iconWidth + 6 + visibleTextWidth + 4
     }
 
     override var isFlipped: Bool { false }
@@ -56,7 +60,11 @@ final class CarouselTickerView: NSView {
         self.items = items
         if currentIndex >= items.count { currentIndex = 0 }
         let maxW = items.map { $0.size().width }.max() ?? 0
-        visibleTextWidth = max(80, maxW + 8)
+        if maxW > 0 {
+            visibleTextWidth = min(360, max(100, maxW + 8))
+        } else {
+            visibleTextWidth = 0
+        }
         needsDisplay = true
         onContentChanged?()
     }
@@ -124,7 +132,7 @@ final class CarouselTickerView: NSView {
         let textRect = NSRect(
             x: iconWidth + 6,
             y: 0,
-            width: visibleTextWidth,
+            width: max(20, totalWidth - iconWidth - 10),
             height: bounds.height
         )
 

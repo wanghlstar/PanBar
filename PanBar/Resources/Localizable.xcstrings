@@ -536,6 +536,18 @@
         "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "是否在菜单栏滚动条中展示这条" } }
       }
     },
+    "ticker.autoMenuBarWidth" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Automatic menu bar width" } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "自动菜单栏宽度" } }
+      }
+    },
+    "ticker.menuBarWidth" : {
+      "localizations" : {
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Menu bar width: %d pt" } },
+        "zh-Hans" : { "stringUnit" : { "state" : "translated", "value" : "菜单栏宽度: %d pt" } }
+      }
+    },
     "ticker.summarySection" : {
       "localizations" : {
         "en" : { "stringUnit" : { "state" : "translated", "value" : "Summary metrics" } },

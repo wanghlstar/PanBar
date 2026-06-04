@@ -62,6 +62,30 @@ private struct TickerPaneContent: View {
                         Text(String(format: L("settings.maxItems", comment: ""), prefs.maxItems))
                     }
                 }
+                if prefs.displayMode == .scroll {
+                    Toggle(L("ticker.autoMenuBarWidth", comment: ""), isOn: $prefs.scrollAutoWidth)
+                    if !prefs.scrollAutoWidth {
+                        Stepper(value: $prefs.scrollMenuBarWidth, in: 160...720, step: 20) {
+                            Text(String(format: L("ticker.menuBarWidth", comment: ""), prefs.scrollMenuBarWidth))
+                        }
+                    }
+                }
+                if prefs.displayMode == .carousel {
+                    Toggle(L("ticker.autoMenuBarWidth", comment: ""), isOn: $prefs.carouselAutoWidth)
+                    if !prefs.carouselAutoWidth {
+                        Stepper(value: $prefs.carouselMenuBarWidth, in: 100...360, step: 20) {
+                            Text(String(format: L("ticker.menuBarWidth", comment: ""), prefs.carouselMenuBarWidth))
+                        }
+                    }
+                }
+                if prefs.displayMode == .compact {
+                    Toggle(L("ticker.autoMenuBarWidth", comment: ""), isOn: $prefs.compactAutoWidth)
+                    if !prefs.compactAutoWidth {
+                        Stepper(value: $prefs.compactMenuBarWidth, in: 60...360, step: 20) {
+                            Text(String(format: L("ticker.menuBarWidth", comment: ""), prefs.compactMenuBarWidth))
+                        }
+                    }
+                }
             }
 
             Section(header: Text(L("ticker.summarySection", comment: "")).font(.headline)) {

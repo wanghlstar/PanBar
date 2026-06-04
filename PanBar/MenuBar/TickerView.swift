@@ -19,6 +19,7 @@ final class TickerView: NSView {
     private var lastTimestamp: CFTimeInterval = 0
     /// 文字与图标之间的间距。
     let iconWidth: CGFloat = 18
+    var preferredTotalWidth: CGFloat?
     /// 滚动文字可视区宽度(超出会被裁剪)。
     var visibleTextWidth: CGFloat = 280
     /// 隐私模式:屏幕共享或用户手动开启时,只显示图标和 "•••",不绘制具体行情。
@@ -38,7 +39,10 @@ final class TickerView: NSView {
     override var allowsVibrancy: Bool { false }
 
     var totalWidth: CGFloat {
-        iconWidth + 6 + visibleTextWidth + 4
+        if let preferredTotalWidth {
+            return max(40, preferredTotalWidth)
+        }
+        return iconWidth + 6 + visibleTextWidth + 4
     }
 
     // MARK: lifecycle
@@ -69,6 +73,11 @@ final class TickerView: NSView {
     func update(attributed: NSAttributedString) {
         self.attributed = attributed
         self.attributedWidth = attributed.size().width
+        if attributedWidth > 0 {
+            visibleTextWidth = min(520, max(20, attributedWidth + 8))
+        } else {
+            visibleTextWidth = 0
+        }
         if attributedWidth + loopGap > 0 {
             offset = offset.truncatingRemainder(dividingBy: attributedWidth + loopGap)
             if offset < 0 { offset += attributedWidth + loopGap }
@@ -137,7 +146,7 @@ final class TickerView: NSView {
         let textRect = NSRect(
             x: iconWidth + 6,
             y: 0,
-            width: visibleTextWidth,
+            width: max(20, totalWidth - iconWidth - 10),
             height: bounds.height
         )
 
