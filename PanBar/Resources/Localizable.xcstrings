@@ -4866,22 +4866,6 @@
         }
       }
     },
-    "ticker.schedule.weekdaysOnly": {
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Weekdays only (Mon-Fri)"
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "仅工作日（周一至周五）"
-          }
-        }
-      }
-    },
     "ticker.schedule.disabledHint": {
       "localizations": {
         "en": {
@@ -4958,6 +4942,22 @@
           "stringUnit": {
             "state": "translated",
             "value": "定时显示：已关闭"
+          }
+        }
+      }
+    },
+    "ticker.schedule.tradingDaysOnly": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Trading days only (weekdays, excl. public holidays)"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "仅交易日（周一至周五，排除法定节假日）"
           }
         }
       }

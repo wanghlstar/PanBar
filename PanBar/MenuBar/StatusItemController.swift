@@ -119,7 +119,7 @@ final class StatusItemController {
         return DisplayScheduleClock(
             startMinutes: prefs.scheduleStart,
             endMinutes: prefs.scheduleEnd,
-            weekdaysOnly: prefs.scheduleWeekdaysOnly
+            tradingDaysOnly: prefs.scheduleTradingDaysOnly
         ).isActive()
     }
 
