@@ -17,11 +17,17 @@ final class MinimalTickerView: NSView {
     var showsIcon: Bool = true
     var hovered: Bool = false
     var onContentChanged: (() -> Void)?
+    /// 定时显示窗口外:只画图标,不画占位 "—"。
+    var iconOnly: Bool = false
 
     let iconWidth: CGFloat = 18
+    private let emptyHitTargetWidth: CGFloat = 24
     private let valueFont = NSFont.monospacedDigitSystemFont(ofSize: 12, weight: .semibold)
 
     var totalWidth: CGFloat {
+        if iconOnly {
+            return showsIcon ? iconWidth + 6 : emptyHitTargetWidth
+        }
         if let preferredTotalWidth {
             return max(40, preferredTotalWidth)
         }
@@ -62,6 +68,8 @@ final class MinimalTickerView: NSView {
         if showsIcon {
             drawIcon(in: NSRect(x: 2, y: (bounds.height - iconWidth) / 2, width: iconWidth, height: iconWidth))
         }
+
+        if iconOnly { return }
 
         if privacyHidden {
             let dots = NSAttributedString(string: "•••", attributes: [

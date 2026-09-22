@@ -1,0 +1,62 @@
+name: Build App
+
+# 推送 main 自动构建;也可在 Actions 页面手动触发(workflow_dispatch)。
+# 产物以未签名 .app 形式发布到 nightly release,方便直接下载使用。
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    name: Release Build (unsigned)
+    runs-on: macos-15
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Select Xcode
+        run: sudo xcode-select -s /Applications/Xcode.app && xcodebuild -version
+
+      - name: Install xcodegen
+        run: brew install xcodegen
+
+      - name: Generate project
+        run: xcodegen generate
+
+      # CODE_SIGNING_ALLOWED=NO:runner 没有签名证书,出未签名产物,
+      # 本地用 `codesign --force --deep -s -` 临时签名即可运行。
+      - name: Build (Release)
+        run: |
+          xcodebuild \
+            -project PanBar.xcodeproj \
+            -scheme PanBar \
+            -configuration Release \
+            -derivedDataPath build/dd \
+            CODE_SIGNING_ALLOWED=NO \
+            build
+
+      - name: Package
+        run: |
+          cd build/dd/Build/Products/Release
+          /usr/bin/ditto -c -k --sequesterRsrc --keepParent PanBar.app PanBar.zip
+          ls -lh PanBar.zip
+
+      - name: Publish to nightly release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: nightly
+          name: Nightly Build
+          body: |
+            自动构建产物(未签名,来自最新 main)。
+
+            本地使用:
+            ```
+            xattr -cr PanBar.app
+            codesign --force --deep -s - PanBar.app
+            ```
+          files: build/dd/Build/Products/Release/PanBar.zip
+          make_latest: false
