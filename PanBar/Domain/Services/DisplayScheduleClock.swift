@@ -1,32 +1,30 @@
 import Foundation
 
-/// 内嵌的法定节假日 / 调休上班日数据(来源:NateScarlet/holiday-cn,
-/// 与国务院发布的放假安排一致)。
+/// 内嵌的交易所交易日历(来源:exchange_calendars 的 XSHG 上交所 A 股日历)。
 ///
-/// 结构:`"2026": { "2026-01-01": true, "2026-02-14": false }`
-///   - 只收录**例外日**(全年绝大多数日期不在表内)
-///   - `true`  = 放假(周末或工作日放假,休市)
-///   - `false` = 调休上班(周末补班,A 股正常交易)
+/// 为什么用交易日历而不是「法定节假日表」:
+///   交易日历直接给出交易所实际开市的每一天,自动处理好
+///   - 法定节假日休市
+///   - 周末休市(**含周末调休上班日 —— 交易所不开市**)
+///   - 特殊闭市
+///   规则与「周一至周五且非法定节假日」完全一致,但无需自己推导。
 ///
-/// 数据按年更新:假日安排通常在前一年 11 月由国务院发布,
-/// 届时重新拉取 holiday-cn 当年 JSON、按此格式合并进
-/// PanBar/Resources/ChinaHolidays.json 即可。
-struct ChinaHolidayCalendar {
-    /// app bundle 内嵌数据;nil = 无数据(调用方退回纯工作日判断)。
-    static let bundled: [String: Bool]? = load(
-        from: Bundle.main.url(forResource: "ChinaHolidays", withExtension: "json")
+/// 数据更新:每年年初执行一次
+///   pip3 install exchange_calendars
+///   python3 scripts/generate_trading_calendar.py
+struct ChinaTradingCalendar {
+    /// app bundle 内嵌的交易日集合("2026-09-22" 格式);nil = 无数据。
+    static let bundled: Set<String>? = load(
+        from: Bundle.main.url(forResource: "TradingDays", withExtension: "json")
     )
 
-    static func load(from url: URL?) -> [String: Bool]? {
+    static func load(from url: URL?) -> Set<String>? {
         guard let url,
               let data = try? Data(contentsOf: url),
-              let obj = try? JSONDecoder().decode([String: [String: Bool]].self, from: data)
+              let days = try? JSONDecoder().decode([String].self, from: data),
+              !days.isEmpty
         else { return nil }
-        var merged: [String: Bool] = [:]
-        for (_, days) in obj {
-            for (date, off) in days { merged[date] = off }
-        }
-        return merged.isEmpty ? nil : merged
+        return Set(days)
     }
 
     /// yyyy-MM-dd(Asia/Shanghai)。
@@ -43,8 +41,8 @@ struct ChinaHolidayCalendar {
 
 /// 定时显示时钟:在配置的时间窗口内显示行情 ticker,窗口外只显示 app 图标。
 ///
-/// 默认窗口:交易日(周一至周五且非法定节假日,含调休上班的周末)
-/// 09:15-15:15(Asia/Shanghai),覆盖 A 股集合竞价(9:15)到收盘后一刻(15:15)。
+/// 默认窗口:交易日(交易所日历内的日期)09:15-15:15(Asia/Shanghai),
+/// 覆盖 A 股集合竞价(9:15)到收盘后一刻(15:15)。
 ///
 /// 窗口语义:start 闭、end 开 —— 09:15 整显示,15:15 整收起。
 /// start > end 时视为跨午夜窗口(如 22:00-06:00)。
@@ -69,15 +67,14 @@ struct DisplayScheduleClock {
         min(1439, max(0, value))
     }
 
-    /// 是否交易日:周一至周五且非法定节假日;调休补班的周末也算交易日。
-    /// 节假日数据缺失的年份自动退回纯「周一至周五」判断。
+    /// 是否交易日:交易所日历内的日期(周末含调休上班日一律休市)。
+    /// 日历数据缺失时(如跨年数据未更新)退回纯「周一至周五」判断。
     func isTradingDay(
         at date: Date = Date(),
-        holidayMap: [String: Bool]? = ChinaHolidayCalendar.bundled
+        tradingDays: Set<String>? = ChinaTradingCalendar.bundled
     ) -> Bool {
-        if let off = holidayMap?[ChinaHolidayCalendar.key(date)] {
-            // 表内日期:false = 调休上班(交易日),true = 放假(休市)
-            return !off
+        if let days = tradingDays {
+            return days.contains(ChinaTradingCalendar.key(date))
         }
         var cal = Calendar(identifier: .gregorian)
         cal.timeZone = Self.timeZone
@@ -89,9 +86,9 @@ struct DisplayScheduleClock {
     /// 当前是否处于显示窗口内。
     func isActive(
         at date: Date = Date(),
-        holidayMap: [String: Bool]? = ChinaHolidayCalendar.bundled
+        tradingDays: Set<String>? = ChinaTradingCalendar.bundled
     ) -> Bool {
-        if tradingDaysOnly && !isTradingDay(at: date, holidayMap: holidayMap) { return false }
+        if tradingDaysOnly && !isTradingDay(at: date, tradingDays: tradingDays) { return false }
 
         var cal = Calendar(identifier: .gregorian)
         cal.timeZone = Self.timeZone
