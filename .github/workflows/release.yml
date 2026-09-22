@@ -1,159 +1,69 @@
 name: Release
 
+# 打 tag 自动构建版本化发布:
+#   git tag v0.2.0 && git push origin v0.2.0
+# CI 会以该版本号构建,并把 PanBar.zip 挂到对应的 GitHub Release 上。
+#
+# 注意:runner 没有签名证书,产物为「未签名」。
+# 本地使用:xattr -cr PanBar.app && codesign --force --deep -s - PanBar.app
+# 公开分发(签名+公证+DMG)需要 Apple Developer 账号,见 docs/RELEASING.md。
 on:
   push:
-    tags:
-      - '*.*.*'
-  workflow_dispatch:
-    inputs:
-      version:
-        description: Version (e.g. 0.1.0)
-        required: true
+    tags: ["v*"]
 
 permissions:
-  # gh release create 需要写仓库内容
   contents: write
 
 jobs:
-  build:
-    name: Build, Notarize & Publish
+  release:
+    name: Versioned Release
     runs-on: macos-15
-    timeout-minutes: 45
+    timeout-minutes: 25
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Resolve version
-        id: ver
-        run: |
-          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
-            echo "version=${{ github.event.inputs.version }}" >> $GITHUB_OUTPUT
-          else
-            echo "version=${GITHUB_REF_NAME}" >> $GITHUB_OUTPUT
-          fi
+      - uses: actions/checkout@v4
 
       - name: Select Xcode
         run: sudo xcode-select -s /Applications/Xcode.app && xcodebuild -version
 
       - name: Install xcodegen
-        run: brew install xcodegen create-dmg
+        run: brew install xcodegen
 
       - name: Generate project
         run: xcodegen generate
 
-      - name: Import signing certificate
-        env:
-          CERT_P12_BASE64: ${{ secrets.MAC_DEVELOPER_ID_P12_BASE64 }}
-          CERT_PASSWORD: ${{ secrets.MAC_DEVELOPER_ID_P12_PASSWORD }}
-          KEYCHAIN_PASSWORD: ${{ secrets.MAC_KEYCHAIN_PASSWORD }}
+      # MARKETING_VERSION 取 tag 号(去掉前缀 v),如 v0.2.0 → 0.2.0
+      - name: Build (Release)
         run: |
-          KEYCHAIN_PATH="$RUNNER_TEMP/build.keychain-db"
-          echo "$CERT_P12_BASE64" | base64 --decode > $RUNNER_TEMP/cert.p12
-          security create-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
-          security set-keychain-settings -lut 21600 "$KEYCHAIN_PATH"
-          security unlock-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
-          # 注意:-t agg 才会同时导入 cert + private key;-t cert 只导证书,签名会失败
-          security import $RUNNER_TEMP/cert.p12 \
-            -P "$CERT_PASSWORD" \
-            -A -t agg -f pkcs12 \
-            -k "$KEYCHAIN_PATH"
-          # 允许 codesign 在非交互场景下访问私钥
-          security set-key-partition-list -S apple-tool:,apple:,codesign: \
-            -s -k "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
-          # 把临时 keychain 加到搜索列表前面,保留 login.keychain
-          security list-keychain -d user -s "$KEYCHAIN_PATH" login.keychain-db
-          # 诊断:确认证书 + 私钥都在
-          security find-identity -v -p codesigning "$KEYCHAIN_PATH"
-
-      - name: Archive & export
-        env:
-          VERSION: ${{ steps.ver.outputs.version }}
-          TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
-        run: |
-          mkdir -p build/Release
-          # 渲染 export-options.plist 里的 teamID 占位符
-          sed "s/__TEAM_ID__/$TEAM_ID/g" scripts/export-options.plist > build/export-options.plist
+          VERSION="${GITHUB_REF_NAME#v}"
           xcodebuild \
             -project PanBar.xcodeproj \
             -scheme PanBar \
             -configuration Release \
-            -archivePath build/PanBar.xcarchive \
-            MARKETING_VERSION=$VERSION \
-            CURRENT_PROJECT_VERSION=$(date +%s) \
-            DEVELOPMENT_TEAM=$TEAM_ID \
-            CODE_SIGN_STYLE=Manual \
-            CODE_SIGN_IDENTITY="Developer ID Application" \
-            archive
-          xcodebuild \
-            -exportArchive \
-            -archivePath build/PanBar.xcarchive \
-            -exportOptionsPlist build/export-options.plist \
-            -exportPath build/Release
+            -derivedDataPath build/dd \
+            MARKETING_VERSION="$VERSION" \
+            CURRENT_PROJECT_VERSION="${GITHUB_RUN_NUMBER}" \
+            CODE_SIGNING_ALLOWED=NO \
+            build
 
-      - name: Notarize & staple
-        env:
-          APPLE_ID: ${{ secrets.APPLE_ID }}
-          APPLE_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
-          TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
-          VERSION: ${{ steps.ver.outputs.version }}
+      - name: Package
         run: |
-          cd build/Release
-          ditto -c -k --keepParent --sequesterRsrc PanBar.app ../PanBar-$VERSION.zip
-          cd ../..
-          xcrun notarytool submit build/PanBar-$VERSION.zip \
-            --apple-id "$APPLE_ID" \
-            --password "$APPLE_PASSWORD" \
-            --team-id "$TEAM_ID" \
-            --wait
-          xcrun stapler staple build/Release/PanBar.app
-          xcrun stapler validate build/Release/PanBar.app
+          cd build/dd/Build/Products/Release
+          /usr/bin/ditto -c -k --sequesterRsrc --keepParent PanBar.app PanBar.zip
+          ls -lh PanBar.zip
 
-      - name: Package DMG
-        env:
-          VERSION: ${{ steps.ver.outputs.version }}
-        run: |
-          create-dmg \
-            --volname "PanBar $VERSION" \
-            --window-pos 200 120 \
-            --window-size 540 380 \
-            --icon-size 100 \
-            --icon "PanBar.app" 140 190 \
-            --app-drop-link 400 190 \
-            --no-internet-enable \
-            build/PanBar-$VERSION.dmg \
-            build/Release/PanBar.app
-
-      - name: Re-zip stapled .app for Sparkle
-        env:
-          VERSION: ${{ steps.ver.outputs.version }}
-        run: |
-          rm -f build/PanBar-$VERSION.zip
-          cd build/Release
-          ditto -c -k --keepParent --sequesterRsrc PanBar.app ../PanBar-$VERSION.zip
-
-      - name: Upload artifacts
-        uses: actions/upload-artifact@v4
+      - name: Attach to GitHub Release
+        uses: softprops/action-gh-release@v2
         with:
-          name: PanBar-${{ steps.ver.outputs.version }}
-          path: |
-            build/PanBar-*.dmg
-            build/PanBar-*.zip
+          files: build/dd/Build/Products/Release/PanBar.zip
+          make_latest: true
+          body: |
+            ## PanBar ${GITHUB_REF_NAME}
 
-      - name: Create GitHub Release
-        env:
-          GH_TOKEN: ${{ github.token }}
-          VERSION: ${{ steps.ver.outputs.version }}
-        run: |
-          if [[ "${{ github.event_name }}" == "push" ]]; then
-            TAG=${GITHUB_REF_NAME}
-          else
-            TAG=$VERSION
-            git tag $TAG
-            git push origin $TAG
-          fi
-          gh release create "$TAG" \
-            --title "PanBar $VERSION" \
-            --generate-notes \
-            build/PanBar-$VERSION.dmg \
-            build/PanBar-$VERSION.zip
+            自动构建(未签名,含定时显示 + 交易日历功能)。
 
+            ### 本地使用
+            ```
+            xattr -cr PanBar.app
+            codesign --force --deep -s - PanBar.app
+            ```
+            或直接跑仓库里的 `scripts/update-app.sh`(自动下载安装 nightly)。
