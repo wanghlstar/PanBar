@@ -4903,13 +4903,13 @@
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Ticker visible now (daily %@ - %@)"
+            "value": "Ticker visible now (daily %@)"
           }
         },
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "当前在显示时段内（每日 %@ - %@）"
+            "value": "当前在显示时段内（每日 %@）"
           }
         }
       }
@@ -4919,13 +4919,13 @@
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Ticker hidden now, icon only (shown daily %@ - %@)"
+            "value": "Ticker hidden now, icon only (shown daily %@)"
           }
         },
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "当前为收起时段，仅显示应用图标（显示时段 %@ - %@）"
+            "value": "当前为收起时段，仅显示应用图标（显示时段 %@）"
           }
         }
       }
