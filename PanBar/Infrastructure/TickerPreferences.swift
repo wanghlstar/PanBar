@@ -141,8 +141,8 @@ final class TickerPreferences: ObservableObject {
         }
     }
     /// 仅工作日(周一至周五)生效;关闭后每天按窗口显示。
-    @Published var scheduleWeekdaysOnly: Bool {
-        didSet { try? repo.set(SettingsRepository.Keys.tickerScheduleWeekdaysOnly, scheduleWeekdaysOnly ? "1" : "0") }
+    @Published var scheduleTradingDaysOnly: Bool {
+        didSet { try? repo.set(SettingsRepository.Keys.tickerScheduleTradingDaysOnly, scheduleTradingDaysOnly ? "1" : "0") }
     }
 
     private let repo: SettingsRepository
@@ -224,7 +224,7 @@ final class TickerPreferences: ObservableObject {
         self.scheduleEnabled = repo.string(SettingsRepository.Keys.tickerScheduleEnabled) != "0"
         self.scheduleStart = Self.clampMinutes(Int(repo.string(SettingsRepository.Keys.tickerScheduleStart) ?? "") ?? Self.defaultScheduleStart)
         self.scheduleEnd = Self.clampMinutes(Int(repo.string(SettingsRepository.Keys.tickerScheduleEnd) ?? "") ?? Self.defaultScheduleEnd)
-        self.scheduleWeekdaysOnly = repo.string(SettingsRepository.Keys.tickerScheduleWeekdaysOnly) != "0"
+        self.scheduleTradingDaysOnly = repo.string(SettingsRepository.Keys.tickerScheduleTradingDaysOnly) != "0"
         migrateMinimalModeIfNeeded()
     }
 

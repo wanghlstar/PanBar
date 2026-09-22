@@ -101,7 +101,7 @@ private struct TickerPaneContent: View {
                 if prefs.scheduleEnabled {
                     DatePicker(L("ticker.schedule.start", comment: ""), selection: startBinding, displayedComponents: .hourAndMinute)
                     DatePicker(L("ticker.schedule.end", comment: ""), selection: endBinding, displayedComponents: .hourAndMinute)
-                    Toggle(L("ticker.schedule.weekdaysOnly", comment: ""), isOn: $prefs.scheduleWeekdaysOnly)
+                    Toggle(L("ticker.schedule.tradingDaysOnly", comment: ""), isOn: $prefs.scheduleTradingDaysOnly)
                     Text(scheduleHint)
                         .font(.caption)
                         .foregroundColor(.secondary)
@@ -242,7 +242,7 @@ private struct TickerPaneContent: View {
         let clock = DisplayScheduleClock(
             startMinutes: prefs.scheduleStart,
             endMinutes: prefs.scheduleEnd,
-            weekdaysOnly: prefs.scheduleWeekdaysOnly
+            tradingDaysOnly: prefs.scheduleTradingDaysOnly
         )
         let range = DisplayScheduleClock.format(minutes: prefs.scheduleStart)
             + " - " + DisplayScheduleClock.format(minutes: prefs.scheduleEnd)

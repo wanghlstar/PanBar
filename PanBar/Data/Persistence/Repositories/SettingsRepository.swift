@@ -63,7 +63,7 @@ struct SettingsRepository {
         static let tickerScheduleEnabled = "ticker_schedule_enabled"
         static let tickerScheduleStart = "ticker_schedule_start"
         static let tickerScheduleEnd = "ticker_schedule_end"
-        static let tickerScheduleWeekdaysOnly = "ticker_schedule_weekdays_only"
+        static let tickerScheduleTradingDaysOnly = "ticker_schedule_weekdays_only"
         static let tickerMenuBarWidth = "ticker_menu_bar_width"
         static let tickerScrollMenuBarWidth = "ticker_scroll_menu_bar_width"
         static let tickerCarouselMenuBarWidth = "ticker_carousel_menu_bar_width"
