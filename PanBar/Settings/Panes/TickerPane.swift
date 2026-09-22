@@ -96,6 +96,22 @@ private struct TickerPaneContent: View {
                 }
             }
 
+            Section(header: Text(L("ticker.scheduleSection", comment: "")).font(.headline)) {
+                Toggle(L("ticker.schedule.enabled", comment: ""), isOn: $prefs.scheduleEnabled)
+                if prefs.scheduleEnabled {
+                    DatePicker(L("ticker.schedule.start", comment: ""), selection: startBinding, displayedComponents: .hourAndMinute)
+                    DatePicker(L("ticker.schedule.end", comment: ""), selection: endBinding, displayedComponents: .hourAndMinute)
+                    Toggle(L("ticker.schedule.weekdaysOnly", comment: ""), isOn: $prefs.scheduleWeekdaysOnly)
+                    Text(scheduleHint)
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                } else {
+                    Text(L("ticker.schedule.disabledHint", comment: ""))
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                }
+            }
+
             Section(header: Text(L("ticker.summarySection", comment: "")).font(.headline)) {
                 Toggle(L("ticker.showTodayPnL", comment: ""), isOn: $prefs.showTodayPnL)
                 Toggle(L("ticker.showAllTimePnL", comment: ""), isOn: $prefs.showAllTimePnL)
@@ -185,6 +201,55 @@ private struct TickerPaneContent: View {
 
     private var showsQuoteContentControls: Bool {
         prefs.displayMode == .scroll || prefs.displayMode == .scrollNoCode || prefs.displayMode == .carousel
+    }
+
+    // MARK: 定时显示
+
+    /// DatePicker 只取时分,用一个固定参考日期做中转。
+    private static let scheduleReferenceDate: Date = {
+        var comps = DateComponents()
+        comps.year = 2001
+        comps.month = 1
+        comps.day = 1
+        return Calendar.current.date(from: comps) ?? Date()
+    }()
+
+    private var startBinding: Binding<Date> {
+        Binding(
+            get: { Self.dateFromMinutes(prefs.scheduleStart) },
+            set: { prefs.scheduleStart = Self.minutesFromDate($0) }
+        )
+    }
+
+    private var endBinding: Binding<Date> {
+        Binding(
+            get: { Self.dateFromMinutes(prefs.scheduleEnd) },
+            set: { prefs.scheduleEnd = Self.minutesFromDate($0) }
+        )
+    }
+
+    private static func dateFromMinutes(_ minutes: Int) -> Date {
+        scheduleReferenceDate.addingTimeInterval(TimeInterval(minutes * 60))
+    }
+
+    private static func minutesFromDate(_ date: Date) -> Int {
+        let comps = Calendar.current.dateComponents([.hour, .minute], from: date)
+        return (comps.hour ?? 0) * 60 + (comps.minute ?? 0)
+    }
+
+    /// 实时提示当前处于窗口内还是窗口外,以及具体的显示时段。
+    private var scheduleHint: String {
+        let clock = DisplayScheduleClock(
+            startMinutes: prefs.scheduleStart,
+            endMinutes: prefs.scheduleEnd,
+            weekdaysOnly: prefs.scheduleWeekdaysOnly
+        )
+        let range = DisplayScheduleClock.format(minutes: prefs.scheduleStart)
+            + " - " + DisplayScheduleClock.format(minutes: prefs.scheduleEnd)
+        if clock.isActive() {
+            return String(format: L("ticker.schedule.hint.active", comment: ""), range)
+        }
+        return String(format: L("ticker.schedule.hint.inactive", comment: ""), range)
     }
 
     private func marketBadge(_ m: Market) -> some View {

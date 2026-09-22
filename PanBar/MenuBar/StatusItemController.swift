@@ -20,6 +20,10 @@ final class StatusItemController {
     private var privacyHidden: Bool = false
     private var currentMode: TickerDisplayMode = .scroll
     private var lockedPopoverLength: CGFloat?
+    /// 定时显示:当前是否处于显示窗口内(未启用定时时恒为 true)。
+    private var scheduleActive: Bool = true
+    /// 定时显示的窗口边界轮询(30 秒一次,跨边界即切换)。
+    private var scheduleTimer: Timer?
 
     init(
         refresher: QuoteRefresher,
@@ -101,9 +105,56 @@ final class StatusItemController {
         if let minimal = tickerView as? MinimalTickerView {
             minimal.scheme = prefs.colorScheme
         }
-        let shouldPause = prefs.pauseWhenClosed && !clock.anyOpen()
-        tickerView.setPaused(shouldPause)
+        scheduleActive = scheduleActiveNow()
+        startScheduleTimer()
+        applyScheduleState()
         applyQuotes(refresher.quotes)
+    }
+
+    // MARK: - 定时显示
+
+    /// 当前是否处于显示窗口内。定时未启用时恒为 true(保持原有行为)。
+    private func scheduleActiveNow() -> Bool {
+        guard prefs.scheduleEnabled else { return true }
+        return DisplayScheduleClock(
+            startMinutes: prefs.scheduleStart,
+            endMinutes: prefs.scheduleEnd,
+            weekdaysOnly: prefs.scheduleWeekdaysOnly
+        ).isActive()
+    }
+
+    /// 30 秒轮询一次,跨过窗口边界时自动切换显示状态。
+    private func startScheduleTimer() {
+        scheduleTimer?.invalidate()
+        guard prefs.scheduleEnabled else {
+            scheduleTimer = nil
+            return
+        }
+        let timer = Timer(timeInterval: 30, repeats: true) { [weak self] _ in
+            self?.reevaluateSchedule()
+        }
+        // .common 模式:菜单展开期间也照常触发
+        RunLoop.main.add(timer, forMode: .common)
+        scheduleTimer = timer
+    }
+
+    @objc private func reevaluateSchedule() {
+        let now = scheduleActiveNow()
+        guard now != scheduleActive else { return }
+        scheduleActive = now
+        applyScheduleState()
+        applyQuotes(refresher.quotes)
+        if now {
+            // 刚进入窗口:行情可能停更好久了,立刻拉一次
+            refresher.refreshNow()
+        }
+    }
+
+    /// 把定时状态同步到 ticker 视图:窗口外强制显示图标、暂停动画。
+    private func applyScheduleState() {
+        tickerView.showsIcon = scheduleActive ? prefs.showAppIcon : true
+        let shouldPause = (prefs.pauseWhenClosed && !clock.anyOpen()) || !scheduleActive
+        tickerView.setPaused(shouldPause)
     }
 
     /// 创建对应模式的视图实例。
@@ -213,39 +264,63 @@ final class StatusItemController {
     }
 
     /// 各模式根据当前数据自己组装,写回到 statusItem.length。
+    /// 定时显示窗口外(!scheduleActive)一律只渲染图标:各模式的空内容态
+    /// (空字符串 / 空 slots / nil content)都只会画 P 图标,宽度收到 ~24pt。
     private func render(quotes: [SymbolID: Quote]) {
         switch currentMode {
         case .scroll, .scrollNoCode:
             guard let view = tickerView as? TickerView else { return }
-            let items = buildTickerItems(quotes: quotes)
-            view.update(attributed: renderer.render(items: items))
+            if scheduleActive {
+                let items = buildTickerItems(quotes: quotes)
+                view.update(attributed: renderer.render(items: items))
+            } else {
+                view.update(attributed: NSAttributedString())
+            }
         case .carousel:
             guard let view = tickerView as? CarouselTickerView else { return }
-            // 汇总用 compact 简写格式拼成一条(「今 +¥8194  累 -¥29.6万  总 ¥64.9万」),
-            // 个股 / 指数各自单条。这样首屏看到的是简写总览,后续轮播看个股。
-            var slots: [NSAttributedString] = []
-            if let summary = buildCompactSummaryString() {
-                slots.append(summary)
+            if scheduleActive {
+                // 汇总用 compact 简写格式拼成一条(「今 +¥8194  累 -¥29.6万  总 ¥64.9万」),
+                // 个股 / 指数各自单条。这样首屏看到的是简写总览,后续轮播看个股。
+                var slots: [NSAttributedString] = []
+                if let summary = buildCompactSummaryString() {
+                    slots.append(summary)
+                }
+                let lineItems = buildLineItems(quotes: quotes)
+                for it in lineItems {
+                    slots.append(renderer.render(items: [it]))
+                }
+                view.update(items: slots)
+            } else {
+                view.update(items: [])
             }
-            let lineItems = buildLineItems(quotes: quotes)
-            for it in lineItems {
-                slots.append(renderer.render(items: [it]))
-            }
-            view.update(items: slots)
         case .compact:
             guard let view = tickerView as? CompactTickerView else { return }
             let snap = refresher.snapshot
-            // 三个汇总开关同样适用于 compact —— 用户只想看其中一两个时,菜单栏更窄
-            view.update(slots: CompactTickerView.Slots(
-                todayPnL: prefs.showTodayPnL ? snap.todayPnL : nil,
-                allTimePnL: prefs.showAllTimePnL ? snap.allTimePnL : nil,
-                totalAssets: prefs.showTotalAssets ? snap.totalAssets : nil,
-                baseCurrency: snap.baseCurrency
-            ))
+            if scheduleActive {
+                // 三个汇总开关同样适用于 compact —— 用户只想看其中一两个时,菜单栏更窄
+                view.update(slots: CompactTickerView.Slots(
+                    todayPnL: prefs.showTodayPnL ? snap.todayPnL : nil,
+                    allTimePnL: prefs.showAllTimePnL ? snap.allTimePnL : nil,
+                    totalAssets: prefs.showTotalAssets ? snap.totalAssets : nil,
+                    baseCurrency: snap.baseCurrency
+                ))
+            } else {
+                view.update(slots: CompactTickerView.Slots(
+                    todayPnL: nil,
+                    allTimePnL: nil,
+                    totalAssets: nil,
+                    baseCurrency: snap.baseCurrency
+                ))
+            }
         case .minimal:
             guard let view = tickerView as? MinimalTickerView else { return }
+            view.iconOnly = !scheduleActive
             let snap = refresher.snapshot
-            view.update(content: minimalContent(snap: snap, metric: prefs.minimalMetric))
+            if scheduleActive {
+                view.update(content: minimalContent(snap: snap, metric: prefs.minimalMetric))
+            } else {
+                view.update(content: nil)
+            }
         }
         statusItem.length = lockedPopoverLength ?? tickerView.totalWidth
     }
@@ -300,6 +375,14 @@ final class StatusItemController {
             privacyItem.keyEquivalentModifierMask = mask
         }
         contextMenu.addItem(privacyItem)
+        // 定时显示开关(标题反映当前状态,点击切换)
+        let scheduleItem = NSMenuItem(
+            title: prefs.scheduleEnabled ? L("menu.schedule.on", comment: "") : L("menu.schedule.off", comment: ""),
+            action: #selector(toggleSchedule),
+            keyEquivalent: ""
+        )
+        scheduleItem.target = self
+        contextMenu.addItem(scheduleItem)
         contextMenu.addItem(.separator())
         contextMenu.addItem(withTitle: L("menu.settings", comment: ""), action: #selector(openSettings), keyEquivalent: ",").target = self
         contextMenu.addItem(withTitle: L("menu.checkForUpdates", comment: ""), action: #selector(checkForUpdates), keyEquivalent: "").target = self
@@ -548,6 +631,16 @@ final class StatusItemController {
         let shouldHide = privacyHidden || autoSharing
         tickerView.privacyHidden = shouldHide
         refreshButtonImage()
+    }
+
+    /// 右键菜单 / 快捷键切换定时显示。
+    @objc private func toggleSchedule() {
+        prefs.scheduleEnabled.toggle()
+        scheduleActive = scheduleActiveNow()
+        startScheduleTimer()
+        applyScheduleState()
+        applyQuotes(refresher.quotes)
+        buildContextMenu()
     }
 
     @objc private func quit() {

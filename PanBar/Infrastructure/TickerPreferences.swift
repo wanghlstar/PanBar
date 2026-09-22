@@ -114,6 +114,36 @@ final class TickerPreferences: ObservableObject {
     @Published var showDirectionArrow: Bool {
         didSet { try? repo.set(SettingsRepository.Keys.tickerShowDirectionArrow, showDirectionArrow ? "1" : "0") }
     }
+    /// 定时显示总开关:开启后仅在设定窗口内显示行情,窗口外只显示 app 图标。
+    @Published var scheduleEnabled: Bool {
+        didSet { try? repo.set(SettingsRepository.Keys.tickerScheduleEnabled, scheduleEnabled ? "1" : "0") }
+    }
+    /// 显示窗口开始(分钟数 0-1439),默认 09:15。
+    @Published var scheduleStart: Int {
+        didSet {
+            let clamped = Self.clampMinutes(scheduleStart)
+            if clamped != scheduleStart {
+                scheduleStart = clamped
+            } else {
+                try? repo.set(SettingsRepository.Keys.tickerScheduleStart, "\(scheduleStart)")
+            }
+        }
+    }
+    /// 显示窗口结束(分钟数 0-1439,开区间),默认 15:15。
+    @Published var scheduleEnd: Int {
+        didSet {
+            let clamped = Self.clampMinutes(scheduleEnd)
+            if clamped != scheduleEnd {
+                scheduleEnd = clamped
+            } else {
+                try? repo.set(SettingsRepository.Keys.tickerScheduleEnd, "\(scheduleEnd)")
+            }
+        }
+    }
+    /// 仅工作日(周一至周五)生效;关闭后每天按窗口显示。
+    @Published var scheduleWeekdaysOnly: Bool {
+        didSet { try? repo.set(SettingsRepository.Keys.tickerScheduleWeekdaysOnly, scheduleWeekdaysOnly ? "1" : "0") }
+    }
 
     private let repo: SettingsRepository
 
@@ -132,6 +162,14 @@ final class TickerPreferences: ObservableObject {
     private static func clampCompactMenuBarWidth(_ value: Int) -> Int {
         min(360, max(60, value))
     }
+
+    private static func clampMinutes(_ value: Int) -> Int {
+        min(1439, max(0, value))
+    }
+
+    /// 定时显示默认值:工作日 09:15-15:15(A 股集合竞价到收盘后一刻)。
+    static let defaultScheduleStart = 9 * 60 + 15
+    static let defaultScheduleEnd = 15 * 60 + 15
 
     init(repo: SettingsRepository) {
         self.repo = repo
@@ -182,6 +220,11 @@ final class TickerPreferences: ObservableObject {
         self.carouselAutoWidth = repo.string(SettingsRepository.Keys.tickerCarouselAutoWidth) == "1"
         self.compactAutoWidth = repo.string(SettingsRepository.Keys.tickerCompactAutoWidth) != "0"
         self.showDirectionArrow = repo.string(SettingsRepository.Keys.tickerShowDirectionArrow) == "1"
+        // 定时显示:默认开启(工作日 09:15-15:15),用户可在设置里调整或关闭
+        self.scheduleEnabled = repo.string(SettingsRepository.Keys.tickerScheduleEnabled) != "0"
+        self.scheduleStart = Self.clampMinutes(Int(repo.string(SettingsRepository.Keys.tickerScheduleStart) ?? "") ?? Self.defaultScheduleStart)
+        self.scheduleEnd = Self.clampMinutes(Int(repo.string(SettingsRepository.Keys.tickerScheduleEnd) ?? "") ?? Self.defaultScheduleEnd)
+        self.scheduleWeekdaysOnly = repo.string(SettingsRepository.Keys.tickerScheduleWeekdaysOnly) != "0"
         migrateMinimalModeIfNeeded()
     }
 
